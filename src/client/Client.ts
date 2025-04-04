@@ -489,12 +489,12 @@ export class Client extends GameShell {
     private midiCrc: number = 0;
     private midiSize: number = 0;
     private midiVolume: number = 64;
-    private minimapScale: number = 3;
+    private minimapScale: number = 1.5;
     private readonly MINIMAP_MIN_SCALE: number = 1;
     private readonly MINIMAP_MAX_SCALE: number = 3;
     
     private cameraZoom: number = 1;
-    private readonly CAMERA_ZOOM_MIN: number = 1;
+    private readonly CAMERA_ZOOM_MIN: number = -3;
     private readonly CAMERA_ZOOM_MAX: number = 10;
     static setHighMemory(): void {
         World3D.lowMemory = false;
@@ -535,17 +535,18 @@ export class Client extends GameShell {
         this.run();
 
         canvasContainer.addEventListener('wheel', (e) => {
+            const zoomStep = -e.deltaY * 0.05; // Adjust zoom step for smoother control
             if (e.ctrlKey) { // Zoom minimap with Ctrl+Wheel
-                e.preventDefault();
-                this.minimapScale = Math.max(this.MINIMAP_MIN_SCALE, 
-                    Math.min(this.MINIMAP_MAX_SCALE, 
-                    this.minimapScale - (-e.deltaY * 0.01)));
+            e.preventDefault();
+            this.minimapScale = Math.max(this.MINIMAP_MIN_SCALE, 
+                Math.min(this.MINIMAP_MAX_SCALE, 
+                this.minimapScale - zoomStep));
             } else {
-                
+            e.preventDefault();
             this.cameraZoom = Math.max(this.CAMERA_ZOOM_MIN, 
                 Math.min(this.CAMERA_ZOOM_MAX, 
-                this.cameraZoom + -e.deltaY));
-                }
+                this.cameraZoom + zoomStep));
+            }
         });
 
         canvasContainer.onkeydown = async (e) => {

@@ -492,6 +492,10 @@ export class Client extends GameShell {
     private minimapScale: number = 3;
     private readonly MINIMAP_MIN_SCALE: number = 1;
     private readonly MINIMAP_MAX_SCALE: number = 3;
+    
+    private cameraZoom: number = 1;
+    private readonly CAMERA_ZOOM_MIN: number = 1;
+    private readonly CAMERA_ZOOM_MAX: number = 10;
     static setHighMemory(): void {
         World3D.lowMemory = false;
         Pix3D.lowMemory = false;
@@ -536,7 +540,12 @@ export class Client extends GameShell {
                 this.minimapScale = Math.max(this.MINIMAP_MIN_SCALE, 
                     Math.min(this.MINIMAP_MAX_SCALE, 
                     this.minimapScale - (-e.deltaY * 0.01)));
-            }
+            } else {
+                
+            this.cameraZoom = Math.max(this.CAMERA_ZOOM_MIN, 
+                Math.min(this.CAMERA_ZOOM_MAX, 
+                this.cameraZoom + -e.deltaY));
+                }
         });
 
         canvasContainer.onkeydown = async (e) => {
@@ -2702,39 +2711,38 @@ export class Client extends GameShell {
             //     this.out.p1isaac(ClientProt.IDLE_TIMER);
             // }
 
-            this.cameraOffsetCycle++;
-            if (this.cameraOffsetCycle > 500) {
-                this.cameraOffsetCycle = 0;
-                const rand: number = (Math.random() * 8.0) | 0;
-                if ((rand & 0x1) === 1) {
-                    this.cameraAnticheatOffsetX += this.cameraOffsetXModifier;
-                }
-                if ((rand & 0x2) === 2) {
-                    this.cameraAnticheatOffsetZ += this.cameraOffsetZModifier;
-                }
-                if ((rand & 0x4) === 4) {
-                    this.cameraAnticheatAngle += this.cameraOffsetYawModifier;
-                }
-            }
+           // Remove anticheat camera offset modifications
+// Original anticheat code commented out below:
 
-            if (this.cameraAnticheatOffsetX < -50) {
-                this.cameraOffsetXModifier = 2;
-            }
-            if (this.cameraAnticheatOffsetX > 50) {
-                this.cameraOffsetXModifier = -2;
-            }
-            if (this.cameraAnticheatOffsetZ < -55) {
-                this.cameraOffsetZModifier = 2;
-            }
-            if (this.cameraAnticheatOffsetZ > 55) {
-                this.cameraOffsetZModifier = -2;
-            }
-            if (this.cameraAnticheatAngle < -40) {
-                this.cameraOffsetYawModifier = 1;
-            }
-            if (this.cameraAnticheatAngle > 40) {
-                this.cameraOffsetYawModifier = -1;
-            }
+// this.cameraOffsetCycle++;
+// if (this.cameraOffsetCycle > 500) {
+//     this.cameraOffsetCycle = 0;
+//     const rand: number = (Math.random() * 8.0) | 0;
+//     if ((rand & 0x1) === 1) {
+//         this.cameraAnticheatOffsetX += this.cameraOffsetXModifier;
+//     }
+//     if ((rand & 0x2) === 2) {
+//         this.cameraAnticheatOffsetZ += this.cameraOffsetZModifier;
+//     }
+//     if ((rand & 0x4) === 4) {
+//         this.cameraAnticheatAngle += this.cameraOffsetYawModifier;
+//     }
+// }
+
+// Reset anticheat variables to zero
+this.cameraAnticheatOffsetX = 0;
+this.cameraAnticheatOffsetZ = 0; 
+this.cameraAnticheatAngle = 0;
+
+// Remove modifier limit checks
+// Original limit checks commented out below:
+
+// if (this.cameraAnticheatOffsetX < -50) this.cameraOffsetXModifier = 2;
+// if (this.cameraAnticheatOffsetX > 50) this.cameraOffsetXModifier = -2;
+// if (this.cameraAnticheatOffsetZ < -55) this.cameraOffsetZModifier = 2;
+// if (this.cameraAnticheatOffsetZ > 55) this.cameraOffsetZModifier = -2;
+// if (this.cameraAnticheatAngle < -40) this.cameraOffsetYawModifier = 1;
+// if (this.cameraAnticheatAngle > 40) this.cameraOffsetYawModifier = -1;
 
             this.minimapOffsetCycle++;
             if (this.minimapOffsetCycle > 500) {
@@ -9983,90 +9991,68 @@ export class Client extends GameShell {
             x = tmp;
         }
 
-        this.cameraX = targetX - x;
-        this.cameraY = targetY - z;
-        this.cameraZ = targetZ - y;
+        this.cameraX = targetX - x * (1 + (this.cameraZoom / 10));
+        this.cameraY = targetY - z * (1 + (this.cameraZoom / 10));
+        this.cameraZ = targetZ - y * (1 + (this.cameraZoom / 10));
         this.cameraPitch = pitch;
         this.cameraYaw = yaw;
     }
 
-    private updateOrbitCamera(): void {
-        if (!this.localPlayer) {
-            return; // custom
-        }
-        const orbitX: number = this.localPlayer.x + this.cameraAnticheatOffsetX;
-        const orbitZ: number = this.localPlayer.z + this.cameraAnticheatOffsetZ;
-        if (this.orbitCameraX - orbitX < -500 || this.orbitCameraX - orbitX > 500 || this.orbitCameraZ - orbitZ < -500 || this.orbitCameraZ - orbitZ > 500) {
-            this.orbitCameraX = orbitX;
-            this.orbitCameraZ = orbitZ;
-        }
-        if (this.orbitCameraX !== orbitX) {
-            this.orbitCameraX += ((orbitX - this.orbitCameraX) / 16) | 0;
-        }
-        if (this.orbitCameraZ !== orbitZ) {
-            this.orbitCameraZ += ((orbitZ - this.orbitCameraZ) / 16) | 0;
-        }
-        if (this.actionKey[1] === 1) {
-            this.orbitCameraYawVelocity += ((-this.orbitCameraYawVelocity - 24) / 2) | 0;
-        } else if (this.actionKey[2] === 1) {
-            this.orbitCameraYawVelocity += ((24 - this.orbitCameraYawVelocity) / 2) | 0;
-        } else {
-            this.orbitCameraYawVelocity = (this.orbitCameraYawVelocity / 2) | 0;
-        }
-        if (this.actionKey[3] === 1) {
-            this.orbitCameraPitchVelocity += ((12 - this.orbitCameraPitchVelocity) / 2) | 0;
-        } else if (this.actionKey[4] === 1) {
-            this.orbitCameraPitchVelocity += ((-this.orbitCameraPitchVelocity - 12) / 2) | 0;
-        } else {
-            this.orbitCameraPitchVelocity = (this.orbitCameraPitchVelocity / 2) | 0;
-        }
-        this.orbitCameraYaw = ((this.orbitCameraYaw + this.orbitCameraYawVelocity / 2) | 0) & 0x7ff;
-        this.orbitCameraPitch += (this.orbitCameraPitchVelocity / 2) | 0;
-        if (this.orbitCameraPitch < 128) {
-            this.orbitCameraPitch = 128;
-        }
-        if (this.orbitCameraPitch > 383) {
-            this.orbitCameraPitch = 383;
-        }
-
-        const orbitTileX: number = this.orbitCameraX >> 7;
-        const orbitTileZ: number = this.orbitCameraZ >> 7;
-        const orbitY: number = this.getHeightmapY(this.currentLevel, this.orbitCameraX, this.orbitCameraZ);
-        let maxY: number = 0;
-
-        if (this.levelHeightmap) {
-            if (orbitTileX > 3 && orbitTileZ > 3 && orbitTileX < 100 && orbitTileZ < 100) {
-                for (let x: number = orbitTileX - 4; x <= orbitTileX + 4; x++) {
-                    for (let z: number = orbitTileZ - 4; z <= orbitTileZ + 4; z++) {
-                        let level: number = this.currentLevel;
-                        if (level < 3 && this.levelTileFlags && (this.levelTileFlags[1][x][z] & 0x2) === 2) {
-                            level++;
-                        }
-
-                        const y: number = orbitY - this.levelHeightmap[level][x][z];
-                        if (y > maxY) {
-                            maxY = y;
-                        }
-                    }
-                }
-            }
-        }
-
-        let clamp: number = maxY * 192;
-        if (clamp > 98048) {
-            clamp = 98048;
-        }
-
-        if (clamp < 32768) {
-            clamp = 32768;
-        }
-
-        if (clamp > this.cameraPitchClamp) {
-            this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 24) | 0;
-        } else if (clamp < this.cameraPitchClamp) {
-            this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 80) | 0;
-        }
+    
+private updateOrbitCamera(): void {
+    if (!this.localPlayer) {
+        return; // custom
     }
+    const orbitX: number = this.localPlayer.x + this.cameraAnticheatOffsetX;
+    const orbitZ: number = this.localPlayer.z + this.cameraAnticheatOffsetZ;
+    if (this.orbitCameraX - orbitX < -500 || this.orbitCameraX - orbitX > 500 || this.orbitCameraZ - orbitZ < -500 || this.orbitCameraZ - orbitZ > 500) {
+        this.orbitCameraX = orbitX;
+        this.orbitCameraZ = orbitZ;
+    }
+    if (this.orbitCameraX !== orbitX) {
+        this.orbitCameraX += ((orbitX - this.orbitCameraX) / 16) | 0;
+    }
+    if (this.orbitCameraZ !== orbitZ) {
+        this.orbitCameraZ += ((orbitZ - this.orbitCameraZ) / 16) | 0;
+    }
+    if (this.actionKey[1] === 1) {
+        this.orbitCameraYawVelocity += ((-this.orbitCameraYawVelocity - 24) / 2) | 0;
+    } else if (this.actionKey[2] === 1) {
+        this.orbitCameraYawVelocity += ((24 - this.orbitCameraYawVelocity) / 2) | 0;
+    } else {
+        this.orbitCameraYawVelocity = (this.orbitCameraYawVelocity / 2) | 0;
+    }
+    if (this.actionKey[3] === 1) {
+        this.orbitCameraPitchVelocity += ((12 - this.orbitCameraPitchVelocity) / 2) | 0;
+    } else if (this.actionKey[4] === 1) {
+        this.orbitCameraPitchVelocity += ((-this.orbitCameraPitchVelocity - 12) / 2) | 0;
+    } else {
+        this.orbitCameraPitchVelocity = (this.orbitCameraPitchVelocity / 2) | 0;
+    }
+    this.orbitCameraYaw = ((this.orbitCameraYaw + this.orbitCameraYawVelocity / 2) | 0) & 0x7ff;
+    this.orbitCameraPitch += (this.orbitCameraPitchVelocity / 2) | 0;
+    if (this.orbitCameraPitch < 128) {
+        this.orbitCameraPitch = 128;
+    }
+    if (this.orbitCameraPitch > 383) {
+        this.orbitCameraPitch = 383;
+    }
+
+    const orbitTileX: number = this.orbitCameraX >> 7;
+    const orbitTileZ: number = this.orbitCameraZ >> 7;
+    const orbitY: number = this.getHeightmapY(this.currentLevel, this.orbitCameraX, this.orbitCameraZ) + (this.cameraZoom * 20);
+
+
+    let clamp: number = (orbitY * 5) * 192;
+    if (clamp > 98048) {
+        clamp = 98048;
+    }
+
+    if (clamp < 32768) {
+        clamp = 32768;
+    }
+    this.cameraPitchClamp += ((clamp - this.cameraPitchClamp) / 24) | 0;
+}
 
     private applyCutscene(): void {
         let x: number = this.cutsceneSrcLocalTileX * 128 + 64;

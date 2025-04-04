@@ -535,9 +535,17 @@ export class Client extends GameShell {
                 e.preventDefault();
                 this.minimapScale = Math.max(this.MINIMAP_MIN_SCALE, 
                     Math.min(this.MINIMAP_MAX_SCALE, 
-                    this.minimapScale - (e.deltaY * 0.01)));
+                    this.minimapScale - (-e.deltaY * 0.01)));
             }
         });
+
+        canvasContainer.onkeydown = (e) => {
+            this.shiftPressed = e.shiftKey;
+        };
+
+        canvasContainer.onkeyup = (e) => {
+            this.shiftPressed = e.shiftKey;
+        };
     }
 
     // ---- override functions
@@ -877,16 +885,13 @@ export class Client extends GameShell {
                         if (!child.invSlotOffsetX || !child.invSlotOffsetY || !child.invSlotObjId || !child.invSlotObjCount) {
                             continue;
                         }
-
+                        
                         if (this.objDragArea !== 0 && this.objDragSlot === slot && this.objDragInterfaceId === child.id) {
-
-                        if (this.shiftPressed && this.objGrabThreshold) {
-                            this.out.p1isaac(ClientProt.INV_BUTTOND); // Changed from OBJ_DROP
-                            this.out.p2(child.id);
-                            this.out.p2(slot);
-                            this.objDragArea = 0;
-                            return;
-                        }
+                            if (this.shiftPressed) {
+                                console.log(`Dropping item: ${child.invSlotObjId[slot]}`);
+                                this.useMenuOption(2);
+                                return;
+                            }
                         }
 
                         let slotX: number = childX + col * (child.marginX + 32);
@@ -5310,12 +5315,6 @@ export class Client extends GameShell {
                     key = this.pollKey();
                     if (key === -1) {
                         return;
-                    }
-                    
-                    if (key === 16) { // Shift key code
-                        this.shiftPressed = true;
-                    } else if (key === -16) {
-                        this.shiftPressed = false;
                     }
                     
 

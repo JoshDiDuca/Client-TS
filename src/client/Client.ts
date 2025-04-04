@@ -420,6 +420,7 @@ export class Client extends GameShell {
     private playerIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
     private entityUpdateCount: number = 0;
     private entityRemovalCount: number = 0;
+    private shiftPressed: boolean = false;
     private entityUpdateIds: Int32Array = new Int32Array(Constants.MAX_PLAYER_COUNT);
     private entityRemovalIds: Int32Array = new Int32Array(1000);
     private playerAppearanceBuffer: (Packet | null)[] = new TypedArray1d(Constants.MAX_PLAYER_COUNT, null);
@@ -488,7 +489,9 @@ export class Client extends GameShell {
     private midiCrc: number = 0;
     private midiSize: number = 0;
     private midiVolume: number = 64;
-
+    private minimapScale: number = 3;
+    private readonly MINIMAP_MIN_SCALE: number = 1;
+    private readonly MINIMAP_MAX_SCALE: number = 3;
     static setHighMemory(): void {
         World3D.lowMemory = false;
         Pix3D.lowMemory = false;
@@ -526,6 +529,15 @@ export class Client extends GameShell {
         }
 
         this.run();
+
+        canvasContainer.addEventListener('wheel', (e) => {
+            if (e.ctrlKey) { // Zoom minimap with Ctrl+Wheel
+                e.preventDefault();
+                this.minimapScale = Math.max(this.MINIMAP_MIN_SCALE, 
+                    Math.min(this.MINIMAP_MAX_SCALE, 
+                    this.minimapScale - (e.deltaY * 0.01)));
+            }
+        });
     }
 
     // ---- override functions
@@ -864,6 +876,17 @@ export class Client extends GameShell {
                     for (let col: number = 0; col < child.width; col++) {
                         if (!child.invSlotOffsetX || !child.invSlotOffsetY || !child.invSlotObjId || !child.invSlotObjCount) {
                             continue;
+                        }
+
+                        if (this.objDragArea !== 0 && this.objDragSlot === slot && this.objDragInterfaceId === child.id) {
+
+                        if (this.shiftPressed && this.objGrabThreshold) {
+                            this.out.p1isaac(ClientProt.INV_BUTTOND); // Changed from OBJ_DROP
+                            this.out.p2(child.id);
+                            this.out.p2(slot);
+                            this.objDragArea = 0;
+                            return;
+                        }
                         }
 
                         let slotX: number = childX + col * (child.marginX + 32);
@@ -1664,7 +1687,7 @@ export class Client extends GameShell {
                 distance[x] = (offset * sin) >> 16;
             }
 
-            World3D.init(512, 334, 500, 800, distance);
+            World3D.init(512, 334, 950, 1200, distance);
             WordFilter.unpack(wordenc);
             this.initializeLevelExperience();
         } catch (err) {
@@ -3827,44 +3850,47 @@ export class Client extends GameShell {
         if (!this.localPlayer) {
             return;
         }
+        
 
         const angle: number = (this.orbitCameraYaw + this.minimapAnticheatAngle) & 0x7ff;
-        let anchorX: number = ((this.localPlayer.x / 32) | 0) + 48;
-        let anchorY: number = 464 - ((this.localPlayer.z / 32) | 0);
-
-        this.imageMinimap?.drawRotatedMasked(21, 9, 146, 151, this.minimapMaskLineOffsets, this.minimapMaskLineLengths, anchorX, anchorY, angle, this.minimapZoom + 256);
-        this.imageCompass?.drawRotatedMasked(0, 0, 33, 33, this.compassMaskLineOffsets, this.compassMaskLineLengths, 25, 25, this.orbitCameraYaw, 256);
-        for (let i: number = 0; i < this.activeMapFunctionCount; i++) {
-            anchorX = this.activeMapFunctionX[i] * 4 + 2 - ((this.localPlayer.x / 32) | 0);
-            anchorY = this.activeMapFunctionZ[i] * 4 + 2 - ((this.localPlayer.z / 32) | 0);
+        const scaleFactor: number = (this.minimapZoom + 256) * this.minimapScale / 256; // Normalized scale
+        
+        // Main map image with existing zoom
+        this.imageMinimap?.drawRotatedMasked(21, 9, 146, 151, 
+            this.minimapMaskLineOffsets, this.minimapMaskLineLengths, 
+            ((this.localPlayer.x / 32) | 0) + 48, 
+            464 - ((this.localPlayer.z / 32) | 0), 
+            angle, 
+            (this.minimapZoom + 256) * this.minimapScale);
+    
+        // Compass remains unchanged
+        this.imageCompass?.drawRotatedMasked(0, 0, 33, 33, 
+            this.compassMaskLineOffsets, this.compassMaskLineLengths, 
+            25, 25, this.orbitCameraYaw, 256);
+    
+        // Map functions with scale adjustment
+        for (let i = 0; i < this.activeMapFunctionCount; i++) {
+            const anchorX = (this.activeMapFunctionX[i] * 4 + 2 - ((this.localPlayer.x / 32) | 0)) / scaleFactor;
+            const anchorY = (this.activeMapFunctionZ[i] * 4 + 2 - ((this.localPlayer.z / 32) | 0)) / scaleFactor;
             this.drawOnMinimap(anchorY, this.activeMapFunctions[i], anchorX);
         }
-
-        for (let ltx: number = 0; ltx < CollisionConstants.SIZE; ltx++) {
-            for (let ltz: number = 0; ltz < CollisionConstants.SIZE; ltz++) {
-                const stack: LinkList | null = this.objStacks[this.currentLevel][ltx][ltz];
-                if (stack) {
-                    anchorX = ltx * 4 + 2 - ((this.localPlayer.x / 32) | 0);
-                    anchorY = ltz * 4 + 2 - ((this.localPlayer.z / 32) | 0);
-                    this.drawOnMinimap(anchorY, this.imageMapdot0, anchorX);
-                }
-            }
-        }
-
-        for (let i: number = 0; i < this.npcCount; i++) {
-            const npc: NpcEntity | null = this.npcs[this.npcIds[i]];
-            if (npc && npc.isVisibleNow() && npc.npcType && npc.npcType.minimap) {
-                anchorX = ((npc.x / 32) | 0) - ((this.localPlayer.x / 32) | 0);
-                anchorY = ((npc.z / 32) | 0) - ((this.localPlayer.z / 32) | 0);
+    
+        // NPCs with scale adjustment
+        for (let i = 0; i < this.npcCount; i++) {
+            const npc = this.npcs[this.npcIds[i]];
+            if (npc?.isVisibleNow() && npc.npcType?.minimap) {
+                const anchorX = (((npc.x / 32) | 0) - ((this.localPlayer.x / 32) | 0)) / scaleFactor;
+                const anchorY = (((npc.z / 32) | 0) - ((this.localPlayer.z / 32) | 0)) / scaleFactor;
                 this.drawOnMinimap(anchorY, this.imageMapdot1, anchorX);
             }
         }
 
-        for (let i: number = 0; i < this.playerCount; i++) {
-            const player: PlayerEntity | null = this.players[this.playerIds[i]];
-            if (player && player.isVisibleNow() && player.name) {
-                anchorX = ((player.x / 32) | 0) - ((this.localPlayer.x / 32) | 0);
-                anchorY = ((player.z / 32) | 0) - ((this.localPlayer.z / 32) | 0);
+    // Players with scale adjustment
+    for (let i = 0; i < this.playerCount; i++) {
+        const player = this.players[this.playerIds[i]];
+        if (player?.isVisibleNow() && player.name) {
+            const anchorX = (((player.x / 32) | 0) - ((this.localPlayer.x / 32) | 0)) / scaleFactor;
+            const anchorY = (((player.z / 32) | 0) - ((this.localPlayer.z / 32) | 0)) / scaleFactor;
 
                 let friend: boolean = false;
                 const name37: bigint = JString.toBase37(player.name);
@@ -3884,8 +3910,8 @@ export class Client extends GameShell {
         }
 
         if (this.flagSceneTileX !== 0) {
-            anchorX = this.flagSceneTileX * 4 + 2 - ((this.localPlayer.x / 32) | 0);
-            anchorY = this.flagSceneTileZ * 4 + 2 - ((this.localPlayer.z / 32) | 0);
+            const anchorX = (this.flagSceneTileX * 4 + 2 - ((this.localPlayer.x / 32) | 0)) / scaleFactor;
+            const anchorY = (this.flagSceneTileZ * 4 + 2 - ((this.localPlayer.z / 32) | 0)) / scaleFactor;
             this.drawOnMinimap(anchorY, this.imageMapflag, anchorX);
         }
         // the white square local player position in the center of the minimap.
@@ -4357,8 +4383,8 @@ export class Client extends GameShell {
                 let sinYaw: number = Pix3D.sin[yaw];
                 let cosYaw: number = Pix3D.cos[yaw];
 
-                sinYaw = (sinYaw * (this.minimapZoom + 256)) >> 8;
-                cosYaw = (cosYaw * (this.minimapZoom + 256)) >> 8;
+                sinYaw = (sinYaw * (this.minimapZoom + 256) * this.minimapScale) >> 8;
+                cosYaw = (cosYaw * (this.minimapZoom + 256) * this.minimapScale) >> 8;
 
                 const relX: number = (y * sinYaw + x * cosYaw) >> 11;
                 const relY: number = (y * cosYaw - x * sinYaw) >> 11;
@@ -5285,6 +5311,13 @@ export class Client extends GameShell {
                     if (key === -1) {
                         return;
                     }
+                    
+                    if (key === 16) { // Shift key code
+                        this.shiftPressed = true;
+                    } else if (key === -16) {
+                        this.shiftPressed = false;
+                    }
+                    
 
                     if (this.viewportInterfaceId !== -1 && this.viewportInterfaceId === this.reportAbuseInterfaceID) {
                         if (key === 8 && this.reportAbuseInput.length > 0) {

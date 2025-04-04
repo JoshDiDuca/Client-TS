@@ -4510,11 +4510,12 @@ export class Client extends GameShell {
             this.out.p2(a);
             this.out.p2(b);
             this.out.p2(c);
-            this.selectedCycle = 0;
-            this.selectedInterface = c;
-            this.selectedItem = b;
-            this.selectedArea = 2;
-
+            if(action !== 422){
+                this.selectedCycle = 0;
+                this.selectedInterface = c;
+                this.selectedItem = b;
+                this.selectedArea = 2;
+            }
             if (Component.instances[c].layer === this.viewportInterfaceId) {
                 this.selectedArea = 1;
             }

@@ -495,7 +495,7 @@ export class Client extends GameShell {
     
     private cameraZoom: number = 1;
     private readonly CAMERA_ZOOM_MIN: number = -3;
-    private readonly CAMERA_ZOOM_MAX: number = 10;
+    private readonly CAMERA_ZOOM_MAX: number = 9;
     static setHighMemory(): void {
         World3D.lowMemory = false;
         Pix3D.lowMemory = false;

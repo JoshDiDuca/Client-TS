@@ -539,7 +539,15 @@ export class Client extends GameShell {
             }
         });
 
-        canvasContainer.onkeydown = (e) => {
+        canvasContainer.onkeydown = async (e) => {
+            console.log('Key pressed: ' + e.code);
+            if(e.code === 'Space') {
+                console.log('Space pressed');
+                const continueIndex = this.menuOption.findIndex((option) => option === 'Continue');
+                if(continueIndex !== -1) {  
+                    await this.useMenuOption(continueIndex);
+                }
+            }
             this.shiftPressed = e.shiftKey;
         };
 
@@ -4656,6 +4664,7 @@ export class Client extends GameShell {
             this.spellSelected = 0;
             return;
         } else if (action === 44) {
+            console.log(c);
             if (!this.pressedContinueOption) {
                 this.out.p1isaac(ClientProt.RESUME_PAUSEBUTTON);
                 this.out.p2(c);
